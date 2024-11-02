@@ -25,7 +25,7 @@ async function createPubNubObject () {
   var pubnub = new PubNub({
     publishKey: publish_key,
     subscribeKey: subscribe_key,
-    userId: UUID
+    userId: "pubnub-oc-test"
   })
   PubNub.prototype.getUserId = function(){return this.getUUID()}
   //  IN PRODUCTION you should use your own backend to deliver a token based on your own ruleset for Access Manager
