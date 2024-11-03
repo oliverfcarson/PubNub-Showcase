@@ -87,24 +87,47 @@ function setupEventListeners() {
   });
 }
 
-// Populate the chat window with message history
+// Populate the chat window with message history, including message actions
 async function populateChatWindow() {
   const messageListDiv = document.getElementById("messageListContents");
   messageListDiv.innerHTML = ""; // Clear existing messages
 
   try {
-    const history = await pubnub.fetchMessages({
-      channels: [publicChannel],
-      count: 20,
-      includeUUID: true,
-    });
+      const history = await pubnub.fetchMessages({
+          channels: [publicChannel],
+          count: 25, // Fetch 25 messages with actions due to API limit
+          includeUUID: true,
+          includeMessageActions: true, // Include message actions in the response
+      });
 
-    for (const msg of history.channels[publicChannel]) {
-      msg.publisher = msg.uuid;
-      await messageReceived(msg, true);
-    }
+      // Loop through each message in the fetched history
+      for (const msg of history.channels[publicChannel]) {
+          msg.publisher = msg.uuid; // Ensure publisher ID is set
+
+          // Display the message
+          await messageReceived(msg, true);
+
+          // Check if the message has associated actions (reactions)
+          if (msg.actions && msg.actions.react) {
+              // Loop through each reaction type and count
+              for (const reaction in msg.actions.react) {
+                  const count = msg.actions.react[reaction].length;
+
+                  // Update the UI to show the reaction with the count
+                  maEmojiReaction({
+                      event: 'added',
+                      data: {
+                          messageTimetoken: msg.timetoken,
+                          type: 'react',
+                          value: reaction, // Use the emoji or reaction type
+                      },
+                      count: count // Pass the count to display properly
+                  });
+              }
+          }
+      }
   } catch (error) {
-    console.log("Error fetching message history:", error);
+      console.log("Error fetching message history or actions:", error);
   }
 }
 

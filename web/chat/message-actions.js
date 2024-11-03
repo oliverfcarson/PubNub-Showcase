@@ -56,16 +56,18 @@ function maEmojiReaction(messageActionEvent) {
       : 'none';
 }
 
-// Add an emoji reaction
+// Add an emoji reaction to a message
 async function maAddEmojiReaction(messageId) {
   const messageElement = document.getElementById('emoji-reactions-' + messageId);
 
+  // Check if the message already has a reaction from the current user
   if (messageElement.classList.contains('temp-message-reacted')) {
     try {
+      // Remove the existing reaction
       await pubnub.removeMessageAction({
         channel: publicChannel,
         messageTimetoken: messageId,
-        actionTimetoken: messageElement.dataset.actionid,
+        actionTimetoken: messageElement.dataset.actionid, // Stored when reaction was added
       });
       messageElement.classList.remove('temp-message-reacted');
     } catch (error) {
@@ -73,11 +75,13 @@ async function maAddEmojiReaction(messageId) {
     }
   } else {
     try {
+      // Add a new reaction
       const result = await pubnub.addMessageAction({
         channel: publicChannel,
         messageTimetoken: messageId,
-        action: { type: 'react', value: 'smile' },
+        action: { type: 'react', value: 'smile' }, // Use 'smile' or any other emoji type you prefer
       });
+      // Store the action timetoken for future removal
       messageElement.dataset.actionid = result.data.actionTimetoken;
       messageElement.classList.add('temp-message-reacted');
     } catch (error) {
@@ -85,6 +89,7 @@ async function maAddEmojiReaction(messageId) {
     }
   }
 }
+
 
 function setupReactionHoverEvents(messageDiv, messageId) {
   const emojiReactionsId = `emoji-reactions-${messageId}`;
