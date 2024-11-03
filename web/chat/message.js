@@ -3,437 +3,197 @@
  * For notes about transitioning between this demo and a production app, see chat.js.
  */
 
-const MESSAGE_DELETED_TEXT = "<span class='msg-deleted'>[Message has been Deleted by Moderator]</span>"
-const EDITED_TEXT_ADDENDUM = "<span class='msg-edited'>(Edited by Moderator)</span>"
+const MESSAGE_DELETED_TEXT = "<span class='msg-deleted'>[Message has been Deleted by Moderator]</span>";
+const EDITED_TEXT_ADDENDUM = "<span class='msg-edited'>(Edited by Moderator)</span>";
 
-//  Handler for the PubNub message event
-async function messageReceived (messageObj, isFromHistory) {
+// Wrapper function to cater for whether the message had an associated image
+function messageContents(messageData) {
+  // Check if `messageData.message.content` and `attachments` exist before accessing them
+  if (
+    messageData.message &&
+    messageData.message.content &&
+    messageData.message.content.attachments &&
+    messageData.message.content.attachments[0] &&
+    messageData.message.content.attachments[0].image &&
+    messageData.message.content.attachments[0].image.source
+  ) {
+    // There was an image attachment with the message
+    var imageRender = `<img src="${messageData.message.content.attachments[0].image.source}" height="200"><br>`;
+    return imageRender + escapeHTML(messageData.message.content.text);
+  } else {
+    // No attachment, return just the text
+    return escapeHTML(messageData.message.content ? messageData.message.content.text : "");
+  }
+}
+
+
+// Escape HTML to prevent XSS attacks
+function escapeHTML(str) {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// Updated messageReceived function in message.js
+
+async function messageReceived(messageObj, isFromHistory) {
   try {
-    if (messageObj.channel != channel) {
-      //  The message has been recevied on a channel we are not currently viewing, update the unread message indicators
-      incrementChannelUnreadCounter(messageObj.channel)
-      return
+    if (messageObj.channel !== publicChannel) {
+      incrementChannelUnreadCounter(messageObj.channel);
+      return;
     }
-    if (messageObj.message.content == null) {
-      //  The message does not have any text associated with it (for example, it is a file
-      //  which has trigged this function as a result of pubnub.sendFile())
-      return
+    if (!messageObj.message.content) {
+      return;
     }
 
-    var chatGptConversation = false
-    if (messageObj.channel.startsWith("Private.chatgpt"))
-    {
-      //  Handle messages from ChatGPT as a special case
-      chatGptConversation = true
-      if (messageObj.message.sender == "ChatGPT")
-      {
-        showMessageSendingInProgressSpinner(false)
-        messageObj.publisher = "ChatGPT";
-        if (channelMembers["ChatGPT"] == null)
-        {
-          developerMessage('PubNub can integrate with ChatGPT using Pub/Sub messaging and Serverless Functions')
-          addUserToCurrentChannel("ChatGPT", "OpenAI", "../img/group/group-chatbot.png") 
-        }
-      }
-      else
-      {
-        showMessageSendingInProgressSpinner(true)
-      }
+    // Set up sender's data if not in channelMembers
+    if (!channelMembers[messageObj.publisher]) {
+      channelMembers[messageObj.publisher] = {
+        name: messageObj.publisher,
+        profileUrl: getRandomAvatar()
+      };
     }
 
-    //  If we don't have the information about the message sender cached, retrieve that from App Context and update our cache
-    if (channelMembers[messageObj.publisher] == null) {
-      try {
-        var result = await getUUIDMetaData(messageObj.publisher)
-        if (result != null) {
-          addUserToCurrentChannel(
-            messageObj.publisher,
-            result.data.name,
-            result.data.profileUrl
-          )
-        }
-        
-      } catch (e) {
-        //  Lookup of unknown uuid failed - they probably logged out and cleared App Context
-        addUserToCurrentChannel(
-          messageObj.publisher,
-          "Unknown",
-          DEFAULT_AVATAR
-        )
-      }
-    }
-
-    if (channelMembers[messageObj.publisher].profileUrl == DEFAULT_AVATAR)
-    {
-      //  The 'users' array is still the master list of users we have in the system but for expediency
-      //  & to ensure things don't get out of sync, redact the message contents based on the channelMembers
-      //  array.
-      messageObj.message.content.attachments[0].image.source = null
-      messageObj.message.content.text = 'User has logged out'
-    }
-
-    var messageDiv = ''
-    if (messageObj.publisher == pubnub.getUserId()) {
-      //  If the read receipt was added as a message reaction before we could draw the message, do that now
-      var messageIsRead = false
-      if (
-        (inflightReadReceipt[messageObj.timetoken] != null &&
-        inflightReadReceipt[messageObj.timetoken] == true) || chatGptConversation
-      ) {
-        messageIsRead = true
-      }
-      //  The sent and received messages have slightly different styling, ergo different HTML
-      messageDiv = createMessageSent(messageObj, messageIsRead)
-      //  Add click and long press handler to the message.
-      addContextHandler(messageDiv, onContextHandler)
+    let messageDiv;
+    if (messageObj.publisher === pubnub.getUUID()) {
+      const messageIsRead = inflightReadReceipt[messageObj.timetoken] || false;
+      messageDiv = createMessageSent(messageObj, messageIsRead);
     } else {
-      //  The sent and received messages have slightly different styling, ergo different HTML
-      messageDiv = createMessageReceived(messageObj)
-      //  Add click and long press handler to the message.
-      addContextHandler(messageDiv, onContextHandler)
+      messageDiv = createMessageReceived(messageObj);
 
-      //  Add a message reaction that we have read the message, if one does not already exist.
-      //  This is very simplistic, once ANY user in the recipient group has read the message, the message is marked as read
-      //  In production, you will want to have separate read receipts for each individual in the group
-      if (messageObj.actions == null || messageObj.actions.read == null) {
-        //  We did not find a read message reaction for our message, add one
-        developerMessage(
-          'PubNub Message Reactions are ideal for send / delivered / read receipts'
-        )
+      if (!messageObj.actions?.read) {
         pubnub.addMessageAction({
-          channel: channel,
+          channel: publicChannel,
           messageTimetoken: messageObj.timetoken,
           action: {
             type: 'read',
-            value: pubnub.getUserId()
+            value: pubnub.getUUID()
           }
-        })
+        });
       }
     }
 
-    //  Update the last read time for the channel on which the message was received
-    if (!isFromHistory) {
-      setChannelLastReadTimetoken(channel, messageObj.timetoken)
-    }
-
-    //  Limit the number of messages shown in the chat window
-    var messageListDiv = document.getElementById('messageListContents')
+    const messageListDiv = document.getElementById('messageListContents');
     if (messageListDiv.children.length >= MAX_MESSAGES_SHOWN_PER_CHAT) {
-      messageListDiv.removeChild(messageListDiv.children[0])
+      messageListDiv.removeChild(messageListDiv.children[0]);
     }
 
-    document.getElementById('messageListContents').appendChild(messageDiv)
+    messageListDiv.appendChild(messageDiv);
 
-    //  Event listener for the message reaction button
-    document
-      .getElementById('emoji-reactions-' + messageObj.timetoken)
-      .addEventListener('click', () => {
-        maAddEmojiReaction(messageObj.timetoken)
-      })
+    // Wait for the emoji reactions element to be in the DOM, then add the event listener
+    setTimeout(() => {
+      const emojiReactionsElement = document.getElementById('emoji-reactions-' + messageObj.timetoken);
+      if (emojiReactionsElement) {
+        emojiReactionsElement.addEventListener('click', () => {
+          maAddEmojiReaction(messageObj.timetoken);
+        });
+      } else {
+        console.warn(`Element 'emoji-reactions-${messageObj.timetoken}' not found.`);
+      }
+    }, 50); // Adjust timeout as necessary to ensure DOM availability
   } catch (e) {
-    console.log('Exception during message reception: ' + e)
+    console.log('Exception during message reception: ', e);
   }
 }
 
-//////////////////////
-//  Generate the HTML for messages
+// Helper functions to create messages with proper structure
 
-//  HTML for messages we have sent ourselves
-function createMessageSent (messageObj, messageIsRead) {
-  var readSrc = '../img/icons/sent.png'
-  if (messageIsRead) {
-    readSrc = '../img/icons/read.png'
-  }
-  var profileUrl = '../img/avatar/placeholder.png'
-  var name = 'pending...'
-  if (channelMembers[messageObj.publisher] != null) {
-    profileUrl = channelMembers[messageObj.publisher].profileUrl
-    name = channelMembers[messageObj.publisher].name
-  }
-  var newMsg = document.createElement('div')
-  newMsg.id = messageObj.timetoken
-  newMsg.className =
-    'text-body-2 temp-message-container temp-message-container-me'
+function createMessageSent(messageObj, messageIsRead) {
+  const readSrc = messageIsRead ? '../img/icons/read.png' : '../img/icons/sent.png';
+  const profileUrl = channelMembers[messageObj.publisher]?.profileUrl || '../img/avatar/placeholder.png';
+  const name = channelMembers[messageObj.publisher]?.name || "Unknown";
+
+  const newMsg = document.createElement('div');
+  newMsg.id = messageObj.timetoken;
+  newMsg.className = 'text-body-2 temp-message-container temp-message-container-me';
   newMsg.innerHTML = `
-  <div class="text-body-2 temp-message-container temp-message-container-me ninetyPercent">
-    <div class="temp-message temp-mesage-me">
-        <div class="temp-message-meta-container temp-message-meta-container-me">
-            <div class="text-caption temp-message-meta-time">
-                ${convertTimetokenToDate(messageObj.timetoken)}
-            </div>
-        </div>
-        <div class="temp-message-bubble temp-message-bubble-me" id='msg-text-${messageObj.timetoken}'  data-unmaskedText='${messageContents(messageObj, true, true)}'>
-            ${messageContents(messageObj)}
-            <div class="temp-read-indicator">
-
-                <div class="temp-message-reaction-rel-container">
-                    <div class="temp-message-reaction-abs-container">
-                        <div id='emoji-reactions-${
-                          messageObj.timetoken
-                        }' class="temp-message-reaction-display-container">
-                            <div class="temp-message-reaction-display">
-                                <img src='../img/icons/smile.png' height='18'><span id='emoji-reactions-${
-                                  messageObj.timetoken
-                                }-count' class="text-caption temp-message-reaction-number">0</span>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-                <img class="temp-read-indicator-me" id='message-check-${
-                  messageObj.timetoken
-                }'
-                    src="${readSrc}" height="10px">
-            </div>
-        </div>
+    <div class="temp-message-avatar">
+      <img src="${profileUrl}" class="chat-list-avatar temp-message-avatar-img">
     </div>
-</div>`
+    <div class="temp-message temp-mesage-me">
+      <div class="temp-message-meta-container temp-message-meta-container-me">
+        <div class="text-caption temp-message-meta-name">${name}</div>
+        <div class="text-caption temp-message-meta-time">${convertTimetokenToDate(messageObj.timetoken)}</div>
+      </div>
+      <div class="temp-message-bubble temp-message-bubble-me" id="msg-text-${messageObj.timetoken}">
+        ${messageContents(messageObj)}
+        <div class="temp-read-indicator">
+          <img id="message-check-${messageObj.timetoken}" src="${readSrc}" height="10px">
+        </div>
+        <div id="emoji-reactions-${messageObj.timetoken}" class="temp-message-reaction-display">
+          <img src="../img/icons/smile.png" height="18">
+          <span id="emoji-reactions-${messageObj.timetoken}-count" class="text-caption temp-message-reaction-number">0</span>
+        </div>
+      </div>
+    </div>`;
 
-  return newMsg
+  return newMsg;
 }
 
-//  HTML for messages we have received
-function createMessageReceived (messageObj) {
-  var profileUrl = '../img/avatar/placeholder.png'
-  var name = 'Unknown'
-  var extraReceiptStyle = ''
-  if (messageObj.channel.startsWith('DM.') || messageObj.channel.includes('-iot')) {
-    //  Hide read receipts in direct chats and the private IoT chat
-    extraReceiptStyle = 'hidden'
-  }
-  if (channelMembers[messageObj.publisher] != null) {
-    profileUrl = channelMembers[messageObj.publisher].profileUrl
-    name = channelMembers[messageObj.publisher].name
-  }
-  var newMsg = document.createElement('div')
-  newMsg.id = messageObj.timetoken
-  newMsg.className =
-    'text-body-2 temp-message-container temp-message-container-you'
+function createMessageReceived(messageObj) {
+  const profileUrl = channelMembers[messageObj.publisher]?.profileUrl || '../img/avatar/placeholder.png';
+  const name = channelMembers[messageObj.publisher]?.name || "Unknown";
+
+  const newMsg = document.createElement('div');
+  newMsg.id = messageObj.timetoken;
+  newMsg.className = 'text-body-2 temp-message-container temp-message-container-you';
   newMsg.innerHTML = `
-  <div class='temp-message-avatar'>
-  <img src='${profileUrl}' class='chat-list-avatar temp-message-avatar-img'>
-  </div>
-  <div class='temp-message temp-mesage-you'>
-  <div class='temp-message-meta-container temp-message-meta-container-you'>
-      <div class='text-caption temp-message-meta-name'>
-          ${name}
+    <div class="temp-message-avatar">
+      <img src="${profileUrl}" class="chat-list-avatar temp-message-avatar-img">
+    </div>
+    <div class="temp-message temp-mesage-you">
+      <div class="temp-message-meta-container temp-message-meta-container-you">
+        <div class="text-caption temp-message-meta-name">${name}</div>
+        <div class="text-caption temp-message-meta-time">${convertTimetokenToDate(messageObj.timetoken)}</div>
       </div>
-      <div class='text-caption temp-message-meta-time'>
-      ${convertTimetokenToDate(messageObj.timetoken)}
+      <div class="temp-message-bubble temp-message-bubble-you" id="msg-text-${messageObj.timetoken}">
+        ${messageContents(messageObj)}
+        <div class="temp-read-indicator">
+          <img id="message-check-${messageObj.timetoken}" src="../img/icons/read.png" height="10px">
+        </div>
+        <div id="emoji-reactions-${messageObj.timetoken}" class="temp-message-reaction-display">
+          <img src="../img/icons/smile.png" height="18">
+          <span id="emoji-reactions-${messageObj.timetoken}-count" class="text-caption temp-message-reaction-number">0</span>
+        </div>
       </div>
-  </div>
-  <div class='temp-message-bubble temp-message-bubble-you' id='msg-text-${messageObj.timetoken}'  data-unmaskedText='${messageContents(messageObj, true, true)}'>
-      ${messageContents(messageObj)}
-      <div class='temp-read-indicator'>
-          <div class='temp-message-reaction-rel-container'>
-              <div class='temp-message-reaction-abs-container'>
-                  <div id='emoji-reactions-${
-                    messageObj.timetoken
-                  }' class='temp-message-reaction-display-container' data-actionid=''>
-                      <div class='temp-message-reaction-display'>
-                          <img src='../img/icons/smile.png' height='18'><span id='emoji-reactions-${
-                            messageObj.timetoken
-                          }-count' class='text-caption temp-message-reaction-number'>0</span>
-                      </div>
-                  </div>
-              </div>
-          </div>
-          <img id='message-check-${
-            messageObj.timetoken
-          }' class='${extraReceiptStyle}' src='../img/icons/read.png' height='10px'>
-      </div>
-  </div>
-</div>
-  `
+    </div>`;
 
-  return newMsg
+  return newMsg;
 }
 
-function messageContents(messageData)
-{
-  return messageContents(messageData, false, false)
+// Function to convert a PubNub timetoken to a readable date format
+function convertTimetokenToDate(timetoken) {
+  const date = new Date(timetoken / 10000);
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
 }
 
-//  Wrapper function to cater for whether the message had an associated image
-//  This method also handles edits, deletes, and restores as created by the 'Channel Monitor' (part of BizOps workspace)
-//  Ensure the 'Channel Monitor Configuration' is enabled and configured as defined in this project's ReadMe.
-function messageContents (messageData, unmasked, withoutEditAddendum) {
-  if (!unmasked && messageData.data && messageData.data.deleted && messageData.data.deleted.deleted.length > 0)
-  {
-    //  This message has been deleted
-    return MESSAGE_DELETED_TEXT
+// Function to send a read receipt for a message
+async function sendReadReceipt(timetoken) {
+  try {
+    await pubnub.addMessageAction({
+      channel: publicChannel,
+      messageTimetoken: timetoken,
+      action: { type: "read", value: pubnub.getUserId() },
+    });
+  } catch (error) {
+    console.log("Failed to send read receipt:", error);
   }
-  else if (messageData.data && messageData.data.edited)
-  {
-    //  Edited messages are defined in the 'messageData.data.edited' field with the key being the message text
-    //  and the value associated with that key being a JSON object which contains the timetoken that edit was
-    //  made.  The keys are ordered alphabetically, so we need to find the most recently edited message by 
-    //  looking at the actionTimetoken
-    var edits = Object.keys(messageData.data.edited)
-    if (edits.length > 0)
-    {
-      //  Find the edit with the latest actionTimetoken
-      var mostRecentEdit = edits[0]
-      var mostRecentEditTimetoken = 0
-      for (var i = 0; i < edits.length; i++)
-      {
-        if (messageData.data.edited[edits[i]][0].actionTimetoken > mostRecentEditTimetoken)
-        {
-          mostRecentEditTimetoken = messageData.data.edited[edits[i]][0].actionTimetoken
-          mostRecentEdit = edits[i]
-        }
-      }
-      if (withoutEditAddendum)
-        return escapeHTML(mostRecentEdit)
-      else
-        return escapeHTML(mostRecentEdit) + EDITED_TEXT_ADDENDUM
-    }
-  }
-  else if (!unmasked && messageData.message.content.attachments && messageData.message.content.attachments[0].image.source != null) {
-    //  There was an image attachment with the message
-    var imageRender =
-      `<img class='temp-message-img temp-message-img-you' src='${messageData.message.content.attachments[0].image.source}'>` +
-      `${escapeHTML(messageData.message.content.text)}`
-    return imageRender
-  } else {
-    return escapeHTML(messageData.message.content.text)
-  }
-}
-
-function messageReactionClicked (messageId) {
-  maAddEmojiReaction(messageId)
 }
 
 //////////////////////
-//  Mesasge count logic
+// Utility functions
 
-//  Use the pubnub.messageCounts() API to determine how many unread messages there are in each channel
-//  that were received prior to us subscribing to the channel.
-async function updateMessageCountFirstLoad () {
-  var oneDayAgoTimestamp = (Date.now() - 24 * 60 * 60 * 1000) * 10000
-  //  Obtain the 'last read time' for each channel we are a member of
-  pubnub.objects
-    .getMemberships({
-      include: {
-        customFields: true
-      }
-    })
-    .then(membershipData => {
-      //  Create a hash of the channels which have a last read time
-      var channelTimestamps = {}
-      for (var channelMembership in membershipData.data) {
-        var memberData = membershipData.data[channelMembership]
-        if (
-          memberData.custom != null &&
-          memberData.custom.lastReadTimetoken != null
-        ) {
-          channelTimestamps[memberData.channel.id] =
-            memberData.custom.lastReadTimetoken
-        }
-      }
-      //  Create an array of channel timetokens
-      var lastLoadTimestamps = []
-      for (var subscribedChannel in subscribedChannels) {
-        if (
-          typeof channelTimestamps[subscribedChannels[subscribedChannel]] ===
-          'undefined'
-        ) {
-          lastLoadTimestamps.push('' + oneDayAgoTimestamp)
-        } else {
-          lastLoadTimestamps.push(
-            '' + channelTimestamps[subscribedChannels[subscribedChannel]]
-          )
-        }
-      }
-      //  lastLoadTimestamps now contains the last read time for each channel, or 0 if it has not been read
-      developerMessage(
-        'PubNub has a dedicated API to return the number of messages received since a given time, ideal to keep track of unread message counts'
-      )
-      pubnub
-        .messageCounts({
-          channels: subscribedChannels,
-          channelTimetokens: lastLoadTimestamps
-        })
-        .then(result => {
-          for (var key in result.channels) {
-            //  Do not display the unread counter if we are currently viewing the channel
-            if (channel != key) {
-              setChannelUnreadCounter(key, result.channels[key])
-            }
-          }
-        })
-    })
-}
-
-function incrementChannelUnreadCounter (channel) {
-  //  Just use the span text to track the current value and increment it (indicated by -1)
-  setChannelUnreadCounter(channel, -1)
-}
-
-//  Update unread message indicator for the specified channel
-function setChannelUnreadCounter (channel, count) {
-  try {
-    if (!channel.includes('Private.'))
-    {
-      channel = channel.replace(pubnub.getUserId(), '')
-      channel = channel.replace('DM.', '')
-      channel = channel.replace('&', '')
-    }
-    var unreadMessage = document.getElementById('unread-' + channel)
-    var unreadMessageSide = document.getElementById('unread-s' + channel)
-    if (unreadMessage == null) {
-      return
-    }
-    if (count == -1) {
-      //  Increment current count by 1
-      var currentCount = unreadMessage.innerText
-      if (currentCount == '') currentCount = 0
-      else currentCount = parseInt(currentCount)
-      count = currentCount + 1
-    }
-    unreadMessage.innerText = count
-    if (count == 0) {
-      //  No unread messages - hide the unread message counter
-      unreadMessage.style.visibility = 'hidden'
-    } else {
-      unreadMessage.style.visibility = 'visible'
-    }
-    unreadMessageSide.innerText = unreadMessage.innerText
-    unreadMessageSide.style.visibility = unreadMessage.style.visibility
-  } catch (e) {
-    console.log(e)
-  }
-}
-
-var months = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec'
-]
-//  Convert PubNub timetoken to a human readable date
-function convertTimetokenToDate (timetoken) {
-  var timestamp = new Date(timetoken / 10000)
-  var hours = timestamp.getHours()
-  var ampm = hours >= 12 ? 'pm' : 'am'
-  hours = hours % 12
-  hours = hours ? hours : 12
-  return (
-    months[timestamp.getMonth()] +
-    ' ' +
-    (timestamp.getDate() + '').padStart(2, '0') +
-    ' - ' +
-    (hours + '').padStart(2, '0') +
-    ':' +
-    (timestamp.getMinutes() + '').padStart(2, '0') +
-    ampm
-  )
+// Placeholder for adding emoji reaction, assuming you have a separate handler in message-actions.js
+function maAddEmojiReaction(messageId) {
+  console.log("Add emoji reaction to message with ID:", messageId);
+  // Logic to add emoji reaction can go here
 }

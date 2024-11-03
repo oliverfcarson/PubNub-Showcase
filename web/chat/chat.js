@@ -1,180 +1,219 @@
-// Configure PubNub with your keys and a unique user ID
-const pubnub = new PubNub({
-  subscribeKey: "sub-c-41316b37-f479-46f9-9cc2-4092d45f1b1b",
-  publishKey: "pub-c-16ce1f19-1ef6-422a-9a9b-96cfff20cb69",
-  uuid: "User-" + Math.random().toString(36).substring(7),
-});
+// Define a single public channel for chat
+var publicChannel = "Public.global_chat";
 
-// Define the single public chat channel
-const publicChannel = "Public.global_chat";
+// Initialize PubNub and variables
+var pubnub = null;
+var userId = null;
+var channelMembers = {};
+var userData = {};
+var me = null;
+const MAX_MESSAGES_SHOWN_PER_CHAT = 50;
+var inflightReadReceipt = {};
+var activeTypers = {};
 
-// Load the chat on page load
-window.onload = function () {
-  initializeChat();
-};
-
-// Set up the chat environment
-function initializeChat() {
-  subscribeToChannel();
-  setupMessageInput();
-  loadChatHistory();
-}
-
-// Subscribe to the public chat channel and set up listeners for various events
-function subscribeToChannel() {
+// Initialize PubNub and set up the channel
+async function loadChat() {
+  userId = setupUser();
+  pubnub = await createPubNubObject();
+  
+  // Subscribe to the public channel and set up event listeners
   pubnub.subscribe({
     channels: [publicChannel],
     withPresence: true,
   });
 
-  pubnub.addListener({
-    message: (event) => displayMessage(event),
-    presence: (event) => handlePresence(event),
-    signal: (signalEvent) => handleSignal(signalEvent),
-    messageAction: (messageActionEvent) => handleMessageAction(messageActionEvent),
+  setupEventListeners();
+  await populateChatWindow();
+}
+
+// Generate a random user ID, e.g., "pubnub#12345"
+function generateRandomUserId() {
+  const randomNumber = Math.floor(10000 + Math.random() * 90000); // 5-digit random number
+  return `pubnub#${randomNumber}`;
+}
+
+// Function to randomly select an avatar from "../img/avatar/001.png" to "../img/avatar/020.png"
+function getRandomAvatar() {
+  const avatarNumber = String(Math.floor(1 + Math.random() * 20)).padStart(3, '0'); // Generate a random number between 001 and 020
+  return `../img/avatar/${avatarNumber}.png`;
+}
+
+// Create PubNub object with keys
+async function createPubNubObject() {
+  return new PubNub({
+    subscribeKey: "",
+    publishKey: "",
+    userId: userId,
   });
 }
 
-// Load recent chat history for the channel
-async function loadChatHistory() {
+// Setup the "me" user data without calling getUserMetadata
+function setupUser() {
+  const userId = generateRandomUserId();
+  me = {
+    name: userId, // Setting name to match the user ID
+    profileUrl: getRandomAvatar() // Randomly selected avatar image
+  };
+  return userId;
+}
+
+// Set up PubNub event listeners
+function setupEventListeners() {
+  pubnub.addListener({
+    message: (messageEvent) => messageReceived(messageEvent, false),
+    presence: (presenceEvent) => handlePresenceEvent(presenceEvent),
+    signal: (signalEvent) => signalReceived(signalEvent),
+    messageAction: (messageActionEvent) => handleMessageAction(messageActionEvent),
+  });
+
+  document.getElementById("input-message").addEventListener("keypress", (event) => {
+    sendTypingIndicator();
+    if (event.key === "Enter") {
+      messageInputSend();
+    }
+  });
+}
+
+// Populate the chat window with message history
+async function populateChatWindow() {
+  const messageListDiv = document.getElementById("messageListContents");
+  messageListDiv.innerHTML = ""; // Clear existing messages
+
   try {
     const history = await pubnub.fetchMessages({
       channels: [publicChannel],
       count: 20,
+      includeUUID: true,
     });
 
-    const messages = history.channels[publicChannel];
-    if (messages) {
-      messages.forEach((msg) => displayMessage(msg, true));
+    for (const msg of history.channels[publicChannel]) {
+      msg.publisher = msg.uuid;
+      await messageReceived(msg, true);
     }
   } catch (error) {
-    console.error("Error loading chat history:", error);
+    console.log("Error fetching message history:", error);
   }
 }
 
-// Set up the message input to send messages and handle typing indicator
-function setupMessageInput() {
+// Handle sending a message
+async function messageInputSend() {
   const messageInput = document.getElementById("input-message");
+  const messageText = messageInput.value;
+  if (!messageText.trim()) return;
 
-  // Send message on "Enter" key press
-  messageInput.addEventListener("keypress", function (event) {
-    sendTypingIndicator();
-    if (event.key === "Enter") {
-      sendMessage();
-    }
-  });
-}
-
-// Send a message to the channel
-async function sendMessage() {
-  const messageInput = document.getElementById("input-message");
-  const messageText = messageInput.value.trim();
-
-  if (messageText) {
-    try {
-      const result = await pubnub.publish({
-        channel: publicChannel,
-        message: {
-          text: messageText,
-          userId: pubnub.getUUID(),
-          timestamp: Date.now(),
-        },
-      });
-      messageInput.value = ""; // Clear the input after sending
-      sendReadReceipt(result.timetoken); // Send read receipt immediately for the message
-    } catch (error) {
-      console.error("Error sending message:", error);
-    }
+  try {
+    await pubnub.publish({
+      channel: publicChannel,
+      message: { content: { type: "text", text: messageText } },
+      storeInHistory: true,
+    });
+    messageInput.value = ""; // Clear input
+  } catch (error) {
+    console.log("Error sending message:", error);
   }
 }
 
-// Send a typing indicator signal
+// Handle incoming message actions (reactions, read receipts)
+function handleMessageAction(messageActionEvent) {
+  if (messageActionEvent.data.type === "read") {
+    maReadReceipt(messageActionEvent);
+  } else if (messageActionEvent.data.type === "react") {
+    maEmojiReaction(messageActionEvent);
+  }
+}
+
+// Handle user presence events
+function handlePresenceEvent(presenceEvent) {
+  const { action, uuid } = presenceEvent;
+  if (action === "join") {
+    addUserToCurrentChannel(uuid);
+  } else if (action === "leave" || action === "timeout") {
+    removeUserFromCurrentChannel(uuid);
+  }
+}
+
+// Add a user to the current channel
+async function addUserToCurrentChannel(userId) {
+  if (!channelMembers[userId]) {
+    const userInfo = await getUserMetadataForId(userId);
+    channelMembers[userId] = { name: userInfo.name, profileUrl: userInfo.profileUrl };
+    updateInfoPane();
+  }
+}
+
+// Get metadata for a specific user by their UUID
+async function getUserMetadataForId(userId) {
+  try {
+    const result = await pubnub.objects.getUUIDMetadata({ uuid: userId });
+    return result.data;
+  } catch {
+    return { name: "Unknown", profileUrl: "../img/avatar/placeholder.png" };
+  }
+}
+
+// Remove a user from the current channel
+function removeUserFromCurrentChannel(userId) {
+  delete channelMembers[userId];
+  updateInfoPane();
+}
+
+// Update the info pane with the list of users in the current channel
+function updateInfoPane() {
+  const memberListDiv = document.getElementById("memberList");
+  memberListDiv.innerHTML = "";
+  for (const userId in channelMembers) {
+    const member = channelMembers[userId];
+    const memberItem = document.createElement("div");
+    memberItem.className = "user-with-presence";
+    memberItem.innerHTML = `
+      <img src="${member.profileUrl}" class="chat-list-avatar">
+      <span class="chat-list-name">${member.name}</span>
+    `;
+    memberListDiv.appendChild(memberItem);
+  }
+}
+
+// Send typing indicator
 function sendTypingIndicator() {
   pubnub.signal({
     channel: publicChannel,
-    message: { type: "typing", userId: pubnub.getUUID() },
+    message: { id: pubnub.getUserId(), t: "t" },
   });
 }
 
-// Handle the receipt of a new message and display it with original styling
-function displayMessage(event, isHistory = false) {
-  const message = event.message;
-  const messageList = document.getElementById("messageListContents");
-
-  // Create message element with original styling
-  const messageElement = document.createElement("div");
-  messageElement.classList.add("message");
-
-  // Format the timestamp
-  const timestamp = new Date(message.timestamp).toLocaleTimeString();
-
-  messageElement.innerHTML = `
-    <strong>${message.userId}</strong> <small>${timestamp}</small><br>
-    <span>${message.text}</span>
-    <div class="message-actions" id="actions-${event.timetoken}">
-      <button onclick="addEmojiReaction('${event.timetoken}', '😊')">😊</button>
-      <button onclick="addEmojiReaction('${event.timetoken}', '👍')">👍</button>
-      <button onclick="addEmojiReaction('${event.timetoken}', '❤️')">❤️</button>
-      <span class="read-status" id="read-${event.timetoken}">Unread</span>
-    </div>
-  `;
-
-  // Append the message to the chat display
-  messageList.appendChild(messageElement);
-
-  // Scroll to the bottom for new messages
-  if (!isHistory) {
-    messageList.scrollTop = messageList.scrollHeight;
-  }
+// Convert PubNub timetoken to a readable date format
+function convertTimetokenToDate(timetoken) {
+  const date = new Date(timetoken / 10000);
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
 }
 
-// Handle presence events
-function handlePresence(event) {
-  if (event.action === "join") {
-    console.log(`${event.uuid} joined the chat.`);
-  } else if (event.action === "leave" || event.action === "timeout") {
-    console.log(`${event.uuid} left the chat.`);
-  }
+// Set the last read timestamp for the public channel
+function setLastReadTimestamp(timetoken) {
+  pubnub.objects.setMemberships({
+    channels: [{ id: publicChannel, custom: { lastReadTimetoken: timetoken } }],
+    uuid: pubnub.getUserId(),
+  });
 }
 
-// Handle typing indicators using signals
-function handleSignal(signalEvent) {
-  const signal = signalEvent.message;
-  if (signal.type === "typing" && signal.userId !== pubnub.getUUID()) {
-    console.log(`${signal.userId} is typing...`);
-    // Optional: add logic here to show a typing indicator in the UI
-  }
-}
-
-// Handle message actions for read receipts and reactions
-function handleMessageAction(messageActionEvent) {
-  const action = messageActionEvent.data;
-  const actionElement = document.getElementById(`actions-${action.messageTimetoken}`);
-
-  if (action.type === "read") {
-    const readStatus = document.getElementById(`read-${action.messageTimetoken}`);
-    readStatus.textContent = "Read";
-  } else if (action.type === "emoji") {
-    const emoji = document.createElement("span");
-    emoji.textContent = action.value;
-    actionElement.appendChild(emoji); // Display the emoji reaction next to the message
-  }
-}
-
-// Send a read receipt for a specific message
-function sendReadReceipt(timetoken) {
-  pubnub.addMessageAction({
+// Send a read receipt for a received message
+async function sendReadReceipt(timetoken) {
+  await pubnub.addMessageAction({
     channel: publicChannel,
     messageTimetoken: timetoken,
-    action: { type: "read", value: "read" },
+    action: { type: "read", value: pubnub.getUserId() },
   });
 }
 
-// Add an emoji reaction to a message
-function addEmojiReaction(timetoken, emoji) {
-  pubnub.addMessageAction({
-    channel: publicChannel,
-    messageTimetoken: timetoken,
-    action: { type: "emoji", value: emoji },
-  });
+// Helper to log messages to console (optional for debugging)
+function developerMessage(message) {
+  console.log("Developer Log:", message);
 }
+
+// Load the chat when the page loads
+window.onload = loadChat;
