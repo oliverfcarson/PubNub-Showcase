@@ -1,14 +1,8 @@
-/**
- * This file contains logic for receiving messages and converting them into a user-readable form.
- * For notes about transitioning between this demo and a production app, see chat.js.
- */
-
 const MESSAGE_DELETED_TEXT = "<span class='msg-deleted'>[Message has been Deleted by Moderator]</span>";
 const EDITED_TEXT_ADDENDUM = "<span class='msg-edited'>(Edited by Moderator)</span>";
 
 // Wrapper function to cater for whether the message had an associated image
 function messageContents(messageData) {
-  // Check if `messageData.message.content` and `attachments` exist before accessing them
   if (
     messageData.message &&
     messageData.message.content &&
@@ -18,7 +12,7 @@ function messageContents(messageData) {
     messageData.message.content.attachments[0].image.source
   ) {
     // There was an image attachment with the message
-    var imageRender = `<img src="${messageData.message.content.attachments[0].image.source}" height="200"><br>`;
+    const imageRender = `<img src="${messageData.message.content.attachments[0].image.source}" height="200"><br>`;
     return imageRender + escapeHTML(messageData.message.content.text);
   } else {
     // No attachment, return just the text
@@ -36,35 +30,26 @@ function escapeHTML(str) {
     .replace(/'/g, "&#039;");
 }
 
-// Ensure setup of channelMembers upon receiving a message
-function setupChannelMember(userId) {
-  if (!channelMembers[userId]) {
-    // Use the `userId` as the name and assign a random avatar if the user data is not available
-    channelMembers[userId] = {
-      name: userId,
-      profileUrl: getRandomAvatar(),
-    };
-  }
-}
-
-// Updated messageReceived function in message.js
 async function messageReceived(messageObj, isFromHistory) {
   try {
     if (messageObj.channel !== publicChannel) {
       incrementChannelUnreadCounter(messageObj.channel);
       return;
     }
-
     if (!messageObj.message.content) {
       return;
     }
 
-    const senderId = messageObj.publisher || messageObj.uuid;
-    setupChannelMember(senderId);
+    // Set up sender's data if not in channelMembers
+    if (!channelMembers[messageObj.publisher]) {
+      channelMembers[messageObj.publisher] = {
+        name: messageObj.publisher,
+        profileUrl: getRandomAvatar() // Ensure avatar is available if not present
+      };
+    }
 
-    // Determine if the message is sent by the current user
     let messageDiv;
-    if (senderId === pubnub.getUUID()) {
+    if (messageObj.publisher === pubnub.getUUID()) {
       const messageIsRead = inflightReadReceipt[messageObj.timetoken] || false;
       messageDiv = createMessageSent(messageObj, messageIsRead);
     } else {
@@ -75,45 +60,38 @@ async function messageReceived(messageObj, isFromHistory) {
           channel: publicChannel,
           messageTimetoken: messageObj.timetoken,
           action: {
-            type: "read",
-            value: pubnub.getUUID(),
-          },
+            type: 'read',
+            value: pubnub.getUUID()
+          }
         });
       }
     }
 
-    const messageListDiv = document.getElementById("messageListContents");
+    const messageListDiv = document.getElementById('messageListContents');
     if (messageListDiv.children.length >= MAX_MESSAGES_SHOWN_PER_CHAT) {
       messageListDiv.removeChild(messageListDiv.children[0]);
     }
 
     messageListDiv.appendChild(messageDiv);
 
-    setTimeout(() => {
-      const emojiReactionsElement = document.getElementById("emoji-reactions-" + messageObj.timetoken);
-      if (emojiReactionsElement) {
-        emojiReactionsElement.addEventListener("click", () => {
-          maAddEmojiReaction(messageObj.timetoken);
-        });
-      } else {
-        console.warn(`Element 'emoji-reactions-${messageObj.timetoken}' not found.`);
-      }
-    }, 50);
+    // Call setupReactionHoverEvents after the messageDiv is appended
+    setupReactionHoverEvents(messageDiv, messageObj.timetoken);
+
   } catch (e) {
-    console.log("Exception during message reception: ", e);
+    console.log('Exception during message reception: ', e);
   }
 }
 
-// Helper functions to create messages with proper structure
 
+// Create HTML for sent messages
 function createMessageSent(messageObj, messageIsRead) {
-  const readSrc = messageIsRead ? "../img/icons/read.png" : "../img/icons/sent.png";
-  const profileUrl = channelMembers[messageObj.publisher]?.profileUrl || "../img/avatar/placeholder.png";
-  const name = pubnub.getUserId();
+  const readSrc = messageIsRead ? '../img/icons/read.png' : '../img/icons/sent.png';
+  const profileUrl = channelMembers[messageObj.publisher]?.profileUrl || '../img/avatar/placeholder.png';
+  const name = pubnub.getUUID();
 
-  const newMsg = document.createElement("div");
+  const newMsg = document.createElement('div');
   newMsg.id = messageObj.timetoken;
-  newMsg.className = "text-body-2 temp-message-container temp-message-container-me";
+  newMsg.className = 'text-body-2 temp-message-container temp-message-container-me';
   newMsg.innerHTML = `
     <div class="temp-message-avatar">
       <img src="${profileUrl}" class="chat-list-avatar temp-message-avatar-img">
@@ -128,24 +106,25 @@ function createMessageSent(messageObj, messageIsRead) {
         <div class="temp-read-indicator">
           <img id="message-check-${messageObj.timetoken}" src="${readSrc}" height="10px">
         </div>
-        <div id="emoji-reactions-${messageObj.timetoken}" class="temp-message-reaction-display">
+        <div id="emoji-reactions-${messageObj.timetoken}" class="temp-message-reaction-display" style="display: none;">
           <img src="../img/icons/smile.png" height="18">
           <span id="emoji-reactions-${messageObj.timetoken}-count" class="text-caption temp-message-reaction-number">0</span>
         </div>
       </div>
     </div>`;
 
+  setupReactionHoverEvents(newMsg, messageObj.timetoken);
   return newMsg;
 }
 
+// Create HTML for received messages
 function createMessageReceived(messageObj) {
-  const senderId = messageObj.publisher || messageObj.uuid;
-  const profileUrl = channelMembers[senderId]?.profileUrl || "../img/avatar/placeholder.png";
-  const name = channelMembers[senderId]?.name || senderId;
+  const profileUrl = channelMembers[messageObj.publisher]?.profileUrl || '../img/avatar/placeholder.png';
+  const name = channelMembers[messageObj.publisher]?.name || "Unknown";
 
-  const newMsg = document.createElement("div");
+  const newMsg = document.createElement('div');
   newMsg.id = messageObj.timetoken;
-  newMsg.className = "text-body-2 temp-message-container temp-message-container-you";
+  newMsg.className = 'text-body-2 temp-message-container temp-message-container-you';
   newMsg.innerHTML = `
     <div class="temp-message-avatar">
       <img src="${profileUrl}" class="chat-list-avatar temp-message-avatar-img">
@@ -160,13 +139,14 @@ function createMessageReceived(messageObj) {
         <div class="temp-read-indicator">
           <img id="message-check-${messageObj.timetoken}" src="../img/icons/read.png" height="10px">
         </div>
-        <div id="emoji-reactions-${messageObj.timetoken}" class="temp-message-reaction-display">
+        <div id="emoji-reactions-${messageObj.timetoken}" class="temp-message-reaction-display" style="display: none;">
           <img src="../img/icons/smile.png" height="18">
           <span id="emoji-reactions-${messageObj.timetoken}-count" class="text-caption temp-message-reaction-number">0</span>
         </div>
       </div>
     </div>`;
 
+  setupReactionHoverEvents(newMsg, messageObj.timetoken);
   return newMsg;
 }
 
@@ -180,26 +160,4 @@ function convertTimetokenToDate(timetoken) {
     minute: "2-digit",
     hour12: true,
   });
-}
-
-// Function to send a read receipt for a message
-async function sendReadReceipt(timetoken) {
-  try {
-    await pubnub.addMessageAction({
-      channel: publicChannel,
-      messageTimetoken: timetoken,
-      action: { type: "read", value: pubnub.getUserId() },
-    });
-  } catch (error) {
-    console.log("Failed to send read receipt:", error);
-  }
-}
-
-//////////////////////
-// Utility functions
-
-// Placeholder for adding emoji reaction, assuming you have a separate handler in message-actions.js
-function maAddEmojiReaction(messageId) {
-  console.log("Add emoji reaction to message with ID:", messageId);
-  // Logic to add emoji reaction can go here
 }

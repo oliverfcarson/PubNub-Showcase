@@ -50,10 +50,10 @@ function maEmojiReaction(messageActionEvent) {
 
   countElement.innerText =
     messageReactions[messageActionEvent.data.messageTimetoken];
-  messageReactionContainer.classList.toggle(
-    'temp-always-visible',
+  messageReactionContainer.style.display =
     messageReactions[messageActionEvent.data.messageTimetoken] > 0
-  );
+      ? 'block'
+      : 'none';
 }
 
 // Add an emoji reaction
@@ -84,4 +84,54 @@ async function maAddEmojiReaction(messageId) {
       console.log("Error adding reaction:", error);
     }
   }
+}
+
+function setupReactionHoverEvents(messageDiv, messageId) {
+  const emojiReactionsId = `emoji-reactions-${messageId}`;
+
+  const addHoverEvents = (emojiReactionsElement) => {
+    // Show emoji reactions on hover
+    messageDiv.addEventListener("mouseenter", () => {
+      emojiReactionsElement.style.display = "block";
+    });
+
+    // Hide emoji reactions when not hovering, only if no reactions exist
+    messageDiv.addEventListener("mouseleave", () => {
+      const countElement = emojiReactionsElement.querySelector(`#${emojiReactionsId}-count`);
+      if (countElement && parseInt(countElement.innerText) === 0) {
+        emojiReactionsElement.style.display = "none";
+      }
+    });
+
+    // Add a click listener to add a reaction
+    emojiReactionsElement.addEventListener("click", () => {
+      maAddEmojiReaction(messageId);
+    });
+  };
+
+  // Try to find the element immediately
+  const emojiReactionsElement = document.getElementById(emojiReactionsId);
+  if (emojiReactionsElement) {
+    addHoverEvents(emojiReactionsElement);
+    return;
+  }
+
+  // If not found, observe for its addition to the DOM
+  const observer = new MutationObserver((mutationsList, observer) => {
+    for (const mutation of mutationsList) {
+      if (mutation.type === "childList") {
+        const addedNode = Array.from(mutation.addedNodes).find(
+          (node) => node.id === emojiReactionsId
+        );
+        if (addedNode) {
+          addHoverEvents(addedNode);
+          observer.disconnect(); // Stop observing once the element is found and events are added
+          return;
+        }
+      }
+    }
+  });
+
+  // Observe messageDiv for changes in its child elements
+  observer.observe(messageDiv, { childList: true, subtree: true });
 }

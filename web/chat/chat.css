@@ -433,22 +433,24 @@ body {
 }
 
 .temp-message-reaction-display-container {
-    position:relative;
-    padding: 7px;
-    top: -4px;
-    right: 60px;
+    position: relative;
     cursor: pointer;
     user-select: none;
-    visibility:hidden;
+    visibility: hidden;
+    display: inline-flex;
 }
 
 .temp-message-reaction-display {
-    position:relative;
-    padding: 5px;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 4px;              /* Minimal padding for compact look */
     background: var(--color-button-dark-text);
     border: 1px solid var(--color-background-dark-text);
-    border-radius: 8px;
+    border-radius: 12px;
     white-space: nowrap;
+    width: auto;                   /* Ensure it adjusts to emoji and count */
+    max-width: 40px;               /* Fixed width to avoid stretching */
+    box-sizing: content-box;
 }
 
 .temp-message-reaction-display:hover {
@@ -457,6 +459,13 @@ body {
 
 .temp-message-reaction-number {
     margin-left: 4px;
+    font-size: 12px;
+    color: #fff;
+}
+
+.temp-message-reaction-display img {
+    width: 16px;
+    height: 16px;
 }
 
 .temp-message-reacted {
