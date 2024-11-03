@@ -13,8 +13,9 @@ var activeTypers = {};
 
 // Initialize PubNub and set up the channel
 async function loadChat() {
-  userId = setupUser();
+  userId = generateRandomUserId();
   pubnub = await createPubNubObject();
+  me = await setupUser(pubnub.getUserId());
   
   // Subscribe to the public channel and set up event listeners
   pubnub.subscribe({
@@ -48,13 +49,25 @@ async function createPubNubObject() {
 }
 
 // Setup the "me" user data without calling getUserMetadata
-function setupUser() {
-  const userId = generateRandomUserId();
-  me = {
-    name: userId, // Setting name to match the user ID
-    profileUrl: getRandomAvatar() // Randomly selected avatar image
+async function setupUser(uuid) {
+  var profileAvatar = getRandomAvatar();  
+  try {
+    const result = await pubnub.objects.setUUIDMetadata({
+      uuid: uuid,  
+      data: {
+        name: uuid,
+        profileUrl: profileAvatar
+      },
+    });
+  } catch (status) {
+    console.log("operation failed w/ error:", status);
+  }
+
+  var user = {
+    name: uuid, // Setting name to match the user ID
+    profileUrl: profileAvatar // Randomly selected avatar image
   };
-  return userId;
+  return user;
 }
 
 // Set up PubNub event listeners
@@ -122,7 +135,6 @@ function handleMessageAction(messageActionEvent) {
   }
 }
 
-// Handle user presence events
 function handlePresenceEvent(presenceEvent) {
   const { action, uuid } = presenceEvent;
   if (action === "join") {
@@ -132,11 +144,14 @@ function handlePresenceEvent(presenceEvent) {
   }
 }
 
-// Add a user to the current channel
+// Add a user to the current channel and populate channelMembers
 async function addUserToCurrentChannel(userId) {
   if (!channelMembers[userId]) {
-    const userInfo = await getUserMetadataForId(userId);
-    channelMembers[userId] = { name: userInfo.name, profileUrl: userInfo.profileUrl };
+    const userInfo = await getUserMetadataForId(userId); // Fetch metadata from PubNub
+    channelMembers[userId] = { 
+      name: userInfo.name || userId, 
+      profileUrl: userInfo.profileUrl || PLACEHOLDER_AVATAR 
+    };
     updateInfoPane();
   }
 }

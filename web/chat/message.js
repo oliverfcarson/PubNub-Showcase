@@ -26,7 +26,6 @@ function messageContents(messageData) {
   }
 }
 
-
 // Escape HTML to prevent XSS attacks
 function escapeHTML(str) {
   return str
@@ -37,28 +36,35 @@ function escapeHTML(str) {
     .replace(/'/g, "&#039;");
 }
 
-// Updated messageReceived function in message.js
+// Ensure setup of channelMembers upon receiving a message
+function setupChannelMember(userId) {
+  if (!channelMembers[userId]) {
+    // Use the `userId` as the name and assign a random avatar if the user data is not available
+    channelMembers[userId] = {
+      name: userId,
+      profileUrl: getRandomAvatar(),
+    };
+  }
+}
 
+// Updated messageReceived function in message.js
 async function messageReceived(messageObj, isFromHistory) {
   try {
     if (messageObj.channel !== publicChannel) {
       incrementChannelUnreadCounter(messageObj.channel);
       return;
     }
+
     if (!messageObj.message.content) {
       return;
     }
 
-    // Set up sender's data if not in channelMembers
-    if (!channelMembers[messageObj.publisher]) {
-      channelMembers[messageObj.publisher] = {
-        name: messageObj.publisher,
-        profileUrl: getRandomAvatar()
-      };
-    }
+    const senderId = messageObj.publisher || messageObj.uuid;
+    setupChannelMember(senderId);
 
+    // Determine if the message is sent by the current user
     let messageDiv;
-    if (messageObj.publisher === pubnub.getUUID()) {
+    if (senderId === pubnub.getUUID()) {
       const messageIsRead = inflightReadReceipt[messageObj.timetoken] || false;
       messageDiv = createMessageSent(messageObj, messageIsRead);
     } else {
@@ -69,46 +75,45 @@ async function messageReceived(messageObj, isFromHistory) {
           channel: publicChannel,
           messageTimetoken: messageObj.timetoken,
           action: {
-            type: 'read',
-            value: pubnub.getUUID()
-          }
+            type: "read",
+            value: pubnub.getUUID(),
+          },
         });
       }
     }
 
-    const messageListDiv = document.getElementById('messageListContents');
+    const messageListDiv = document.getElementById("messageListContents");
     if (messageListDiv.children.length >= MAX_MESSAGES_SHOWN_PER_CHAT) {
       messageListDiv.removeChild(messageListDiv.children[0]);
     }
 
     messageListDiv.appendChild(messageDiv);
 
-    // Wait for the emoji reactions element to be in the DOM, then add the event listener
     setTimeout(() => {
-      const emojiReactionsElement = document.getElementById('emoji-reactions-' + messageObj.timetoken);
+      const emojiReactionsElement = document.getElementById("emoji-reactions-" + messageObj.timetoken);
       if (emojiReactionsElement) {
-        emojiReactionsElement.addEventListener('click', () => {
+        emojiReactionsElement.addEventListener("click", () => {
           maAddEmojiReaction(messageObj.timetoken);
         });
       } else {
         console.warn(`Element 'emoji-reactions-${messageObj.timetoken}' not found.`);
       }
-    }, 50); // Adjust timeout as necessary to ensure DOM availability
+    }, 50);
   } catch (e) {
-    console.log('Exception during message reception: ', e);
+    console.log("Exception during message reception: ", e);
   }
 }
 
 // Helper functions to create messages with proper structure
 
 function createMessageSent(messageObj, messageIsRead) {
-  const readSrc = messageIsRead ? '../img/icons/read.png' : '../img/icons/sent.png';
-  const profileUrl = channelMembers[messageObj.publisher]?.profileUrl || '../img/avatar/placeholder.png';
-  const name = channelMembers[messageObj.publisher]?.name || "Unknown";
+  const readSrc = messageIsRead ? "../img/icons/read.png" : "../img/icons/sent.png";
+  const profileUrl = channelMembers[messageObj.publisher]?.profileUrl || "../img/avatar/placeholder.png";
+  const name = pubnub.getUserId();
 
-  const newMsg = document.createElement('div');
+  const newMsg = document.createElement("div");
   newMsg.id = messageObj.timetoken;
-  newMsg.className = 'text-body-2 temp-message-container temp-message-container-me';
+  newMsg.className = "text-body-2 temp-message-container temp-message-container-me";
   newMsg.innerHTML = `
     <div class="temp-message-avatar">
       <img src="${profileUrl}" class="chat-list-avatar temp-message-avatar-img">
@@ -134,12 +139,13 @@ function createMessageSent(messageObj, messageIsRead) {
 }
 
 function createMessageReceived(messageObj) {
-  const profileUrl = channelMembers[messageObj.publisher]?.profileUrl || '../img/avatar/placeholder.png';
-  const name = channelMembers[messageObj.publisher]?.name || "Unknown";
+  const senderId = messageObj.publisher || messageObj.uuid;
+  const profileUrl = channelMembers[senderId]?.profileUrl || "../img/avatar/placeholder.png";
+  const name = channelMembers[senderId]?.name || senderId;
 
-  const newMsg = document.createElement('div');
+  const newMsg = document.createElement("div");
   newMsg.id = messageObj.timetoken;
-  newMsg.className = 'text-body-2 temp-message-container temp-message-container-you';
+  newMsg.className = "text-body-2 temp-message-container temp-message-container-you";
   newMsg.innerHTML = `
     <div class="temp-message-avatar">
       <img src="${profileUrl}" class="chat-list-avatar temp-message-avatar-img">
