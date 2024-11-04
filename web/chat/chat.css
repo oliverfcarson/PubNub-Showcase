@@ -9,24 +9,25 @@ body {
     display: flex;
     flex-direction: row;
     width: 100%;
-    flex-grow: 1;
+    height: 100vh; /* Full viewport height to avoid issues */
     overflow: hidden;
 }
 
 #chat-rhs {
-    background: var(--color-background-default);
     display: flex;
-    flex-grow: 1;
     flex-direction: column;
+    flex-grow: 1;
     overflow: hidden;
-    padding-bottom: 8px;
+    height: 100%;
+    background: var(--color-background-default);
 }
 
 .message-list {
     display: flex;
     flex-direction: column-reverse;
     overflow-y: auto;
-    height: 100%; /* Ensure it takes up available height */
+    height: 100%; /* Ensures it takes up all available height */
+    padding-top: 16px;
 }
 
 .message-list-contents {
@@ -35,8 +36,19 @@ body {
     width: 100%;
     padding-left: 24px;
     padding-right: 24px;
+    padding-bottom: 50px; /* Adds extra space below the last message */
 }
 
+
+.message-input-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 8px;
+    background-color: var(--color-background-default);
+    z-index: 100;
+}
 
 .user-list {
     background: var(--color-background);
@@ -129,11 +141,10 @@ body {
 }
 
 .chat-info-icon {
-    display:flex;
-    align-items: center;
-    padding-left: 21px;
-    min-width: 64px;
-    min-height: 64px;
+    position: fixed;
+    top: 16px; /* Adjust as needed */
+    right: 16px; /* Adjust as needed */
+    z-index: 1000;
     cursor: pointer;
 }
 
@@ -470,7 +481,14 @@ body {
 @media screen and ( max-width: 576px ) { 
     #chat-lhs { display:none }
 
-    .chat-hamburger-icon {display:flex}
+    .chat-info-icon {
+        right: 8px;
+        top: 8px;
+    }
+    
+    .message-input-bar {
+        padding: 4px;
+    }
 
     .temp-message-img {
         max-width: 300px;

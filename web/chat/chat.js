@@ -17,12 +17,6 @@ async function loadChat() {
   pubnub = await createPubNubObject();
   me = await setupUser(pubnub.getUserId());
 
-  // Set the user ID in the header after PubNub initialization
-  document.getElementById("currentUser").innerText = pubnub.getUserId() + "(You)";
-
-  // Set avatar
-  document.getElementById("avatar").src = me.profileUrl;
-  
   // Subscribe to the public channel and set up event listeners
   pubnub.subscribe({
     channels: [publicChannel],
@@ -56,24 +50,23 @@ async function createPubNubObject() {
 
 // Setup the "me" user data without calling getUserMetadata
 async function setupUser(uuid) {
-  var profileAvatar = getRandomAvatar();  
+  var profileAvatar = getRandomAvatar();
   try {
-    const result = await pubnub.objects.setUUIDMetadata({
-      uuid: uuid,  
+    await pubnub.objects.setUUIDMetadata({
+      uuid: uuid,
       data: {
         name: uuid,
-        profileUrl: profileAvatar
+        profileUrl: profileAvatar,
       },
     });
   } catch (status) {
     console.log("operation failed w/ error:", status);
   }
 
-  var user = {
+  return {
     name: uuid, // Setting name to match the user ID
-    profileUrl: profileAvatar // Randomly selected avatar image
+    profileUrl: profileAvatar, // Randomly selected avatar image
   };
-  return user;
 }
 
 // Set up PubNub event listeners
@@ -99,41 +92,41 @@ async function populateChatWindow() {
   messageListDiv.innerHTML = ""; // Clear existing messages
 
   try {
-      const history = await pubnub.fetchMessages({
-          channels: [publicChannel],
-          count: 25, // Fetch 25 messages with actions due to API limit
-          includeUUID: true,
-          includeMessageActions: true, // Include message actions in the response
-      });
+    const history = await pubnub.fetchMessages({
+      channels: [publicChannel],
+      count: 25, // Fetch 25 messages with actions due to API limit
+      includeUUID: true,
+      includeMessageActions: true, // Include message actions in the response
+    });
 
-      // Loop through each message in the fetched history
-      for (const msg of history.channels[publicChannel]) {
-          msg.publisher = msg.uuid; // Ensure publisher ID is set
+    // Loop through each message in the fetched history
+    for (const msg of history.channels[publicChannel]) {
+      msg.publisher = msg.uuid; // Ensure publisher ID is set
 
-          // Display the message
-          await messageReceived(msg, true);
+      // Display the message
+      await messageReceived(msg, true);
 
-          // Check if the message has associated actions (reactions)
-          if (msg.actions && msg.actions.react) {
-              // Loop through each reaction type and count
-              for (const reaction in msg.actions.react) {
-                  const count = msg.actions.react[reaction].length;
+      // Check if the message has associated actions (reactions)
+      if (msg.actions && msg.actions.react) {
+        // Loop through each reaction type and count
+        for (const reaction in msg.actions.react) {
+          const count = msg.actions.react[reaction].length;
 
-                  // Update the UI to show the reaction with the count
-                  maEmojiReaction({
-                      event: 'added',
-                      data: {
-                          messageTimetoken: msg.timetoken,
-                          type: 'react',
-                          value: reaction, // Use the emoji or reaction type
-                      },
-                      count: count // Pass the count to display properly
-                  });
-              }
-          }
+          // Update the UI to show the reaction with the count
+          maEmojiReaction({
+            event: 'added',
+            data: {
+              messageTimetoken: msg.timetoken,
+              type: 'react',
+              value: reaction, // Use the emoji or reaction type
+            },
+            count: count, // Pass the count to display properly
+          });
+        }
       }
+    }
   } catch (error) {
-      console.log("Error fetching message history or actions:", error);
+    console.log("Error fetching message history or actions:", error);
   }
 }
 
@@ -177,9 +170,9 @@ function handlePresenceEvent(presenceEvent) {
 async function addUserToCurrentChannel(userId) {
   if (!channelMembers[userId]) {
     const userInfo = await getUserMetadataForId(userId); // Fetch metadata from PubNub
-    channelMembers[userId] = { 
-      name: userInfo.name || userId, 
-      profileUrl: userInfo.profileUrl || PLACEHOLDER_AVATAR 
+    channelMembers[userId] = {
+      name: userInfo.name || userId,
+      profileUrl: userInfo.profileUrl || PLACEHOLDER_AVATAR,
     };
     updateInfoPane();
   }
@@ -205,12 +198,31 @@ function removeUserFromCurrentChannel(userId) {
 function updateInfoPane() {
   const memberListDiv = document.getElementById("memberList");
   memberListDiv.innerHTML = "";
+
+  // Add the current user at the top of the list
+  const currentUserItem = document.createElement("div");
+  currentUserItem.className = "user-with-presence";
+  currentUserItem.innerHTML = `
+    <div class="presence-avatar-container">
+      <img src="${me.profileUrl}" class="chat-list-avatar">
+      <span class="presence-dot-online"></span>
+    </div>
+    <span class="chat-list-name">${me.name} (You)</span>
+  `;
+  memberListDiv.appendChild(currentUserItem);
+
+  // Add other users below the current user
   for (const userId in channelMembers) {
+    // Skip the current user since it's already added
+    if (userId === pubnub.getUserId()) continue;
+
     const member = channelMembers[userId];
     const memberItem = document.createElement("div");
     memberItem.className = "user-with-presence";
     memberItem.innerHTML = `
-      <img src="${member.profileUrl}" class="chat-list-avatar">
+      <div class="presence-avatar-container">
+        <img src="${member.profileUrl}" class="chat-list-avatar">
+      </div>
       <span class="chat-list-name">${member.name}</span>
     `;
     memberListDiv.appendChild(memberItem);
@@ -254,10 +266,7 @@ async function sendReadReceipt(timetoken) {
   });
 }
 
-// Helper to log messages to console (optional for debugging)
-function developerMessage(message) {
-  console.log("Developer Log:", message);
-}
-
 // Load the chat when the page loads
-window.onload = loadChat;
+window.onload = function() {
+  loadChat();
+};

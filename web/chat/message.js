@@ -42,10 +42,14 @@ async function messageReceived(messageObj, isFromHistory) {
 
     // Set up sender's data if not in channelMembers
     if (!channelMembers[messageObj.publisher]) {
-      channelMembers[messageObj.publisher] = {
-        name: messageObj.publisher,
-        profileUrl: getRandomAvatar() // Ensure avatar is available if not present
-      };
+      var userData = null;
+      try {
+        const result = await pubnub.objects.getUUIDMetadata({ uuid: messageObj.publisher });
+        userData = { name: messageObj.publisher, profileUrl: result.data.profileUrl};
+      } catch {
+        userData = { name: messageObj.publisher, profileUrl: getRandomAvatar() };
+      }
+      channelMembers[messageObj.publisher] = userData;
     }
 
     let messageDiv;

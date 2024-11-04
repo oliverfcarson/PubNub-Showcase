@@ -34,25 +34,10 @@
 <body>
     <div id="chat-container">        
         <div id="chat-rhs">
-            <div id="header" class="chat-header">               
-                <div class="blue-ellipse-bkd"></div>
-                <div class="chat-list-current-user">
-                    <div class="user-with-presence">
-                        <img id="avatar" src="../img/avatar/placeholder.png" class="chat-list-avatar">
-                        <span class="presence-dot-online"></span>
-                        <span id="currentUser" class="chat-list-current-user-name emphasised-body"></span>
-                    </div>
-                </div>    
-                <div id='heading' class="demo-header heading-2 chat-header-active-group">Chat</div>
-                <div class="red-ellipse-bkd"></div>
-
-                <div class="chat-info-icon" data-bs-toggle="offcanvas" data-bs-target="#chatRightSide"
-                    aria-controls="chatRightSide">
-                    <img src="../img/icons/info.png" height="22">
-
-                </div>
-            </div>
-
+            <!-- Floating Info Button -->
+            <div class="chat-info-icon" data-bs-toggle="offcanvas" data-bs-target="#chatRightSide" aria-controls="chatRightSide">
+                <img src="../img/icons/info.png" height="22">
+            </div>          
             <div id='messageList' class="message-list">
                 <div id='messageListContents' class="message-list-contents"></div>
             </div>
@@ -115,15 +100,13 @@
 
     <div class="offcanvas offcanvas-end" tabindex="-1" id="chatRightSide" aria-labelledby="chatRightSideLabel">
         <div class="offcanvas-header">
-            <div id="chat-info-header" class="emphasised-body">Chat information</div>
+            <div id="chat-info-header" class="emphasised-body">Chat Members</div>
             <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
         </div>
         <div class="offcanvas-body">
-            <div id="chat-info-description" class="text-body-2"></div>
-            <div class="emphasised-body">Chat Members</div>
             <div id="memberList" class="chat-info-member-list"></div>
         </div>
-    </div>
+    </div>    
 
     <script>
         const pickerOptions = {onEmojiSelect: selectEmoji}
