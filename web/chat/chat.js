@@ -222,6 +222,7 @@ function updateInfoPane() {
     memberItem.innerHTML = `
       <div class="presence-avatar-container">
         <img src="${member.profileUrl}" class="chat-list-avatar">
+        <span class="presence-dot-online"></span>
       </div>
       <span class="chat-list-name">${member.name}</span>
     `;

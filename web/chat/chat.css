@@ -98,9 +98,15 @@ body {
 }
 
 .user-with-presence {
-    position: relative;
-    top: 0;
-    left: 0;
+    display: flex;
+    align-items: center; /* Keep avatar and username on the same row */
+    margin-bottom: 8px;
+}
+
+.presence-avatar-container {
+    position: relative; /* Allows absolute positioning for the dot */
+    display: inline-block;
+    margin-right: 8px; /* Space between avatar and username */
 }
 
 .cursor-pointer {
@@ -108,17 +114,14 @@ body {
 }
 
 .chat-list-avatar {
-    position: relative;
-    top: 0;
-    left: 0;
-    width: 3em;
+    width: 3em; /* Adjust size as needed */
     height: 3em;
-    border-radius: 50%
+    border-radius: 50%;
 }
 
 .chat-list-name {
     font-size: larger;
-    padding-left: 0.5em;
+    padding-left: 0; /* Remove padding if there is any */
 }
 
 .chat-header {
@@ -166,14 +169,13 @@ body {
 
 .presence-dot-online {
     position: absolute;
-    top: 35px;
-    left: 35px;
-    width: 1em;
-    height: 1em;
+    bottom: 0;
+    right: 0;
+    width: 0.8em;
+    height: 0.8em;
     background-color: var(--color-icon-alert-success);
-    border: 1px solid var(--color-background);
+    border: 2px solid var(--color-background-default); /* Matches the background for a clean edge */
     border-radius: 50%;
-    display: inline-block;
 }
 
 .presence-dot-online-num {
