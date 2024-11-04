@@ -178,6 +178,7 @@ async function addUserToCurrentChannel(userId) {
     channelMembers[userId] = {
       name: userInfo.name || userId,
       profileUrl: userInfo.profileUrl || PLACEHOLDER_AVATAR,
+      isOnline: true
     };
     updateInfoPane();
   }
@@ -227,7 +228,7 @@ function updateInfoPane() {
     memberItem.innerHTML = `
       <div class="presence-avatar-container">
         <img src="${member.profileUrl}" class="chat-list-avatar">
-        <span class="presence-dot-online"></span>
+        <span class="${member.isOnline ? "presence-dot-online" : ".presence-dot-gray"}"></span>
       </div>
       <span class="chat-list-name">${member.name}</span>
     `;

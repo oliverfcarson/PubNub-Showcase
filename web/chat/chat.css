@@ -195,14 +195,13 @@ body {
 
 .presence-dot-gray {
     position: absolute;
-    top: 35px;
-    left: 35px;
-    width: 1em;
-    height: 1em;
-    background-color: var(--color-input-border);
-    border: 1px solid var(--color-background);
+    bottom: 0;
+    right: 0;
+    width: 0.8em;
+    height: 0.8em;
+    background-color: var(--color-input-border); /* Gray */
+    border: 2px solid var(--color-background-default); /* Matches the background for a clean edge */
     border-radius: 50%;
-    display: inline-block;
 }
 
 .hidden {
