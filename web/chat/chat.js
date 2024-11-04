@@ -92,41 +92,46 @@ async function populateChatWindow() {
   messageListDiv.innerHTML = ""; // Clear existing messages
 
   try {
-    const history = await pubnub.fetchMessages({
-      channels: [publicChannel],
-      count: 25, // Fetch 25 messages with actions due to API limit
-      includeUUID: true,
-      includeMessageActions: true, // Include message actions in the response
-    });
+      const history = await pubnub.fetchMessages({
+          channels: [publicChannel],
+          count: 25, // Fetch 25 messages with actions due to API limit
+          includeUUID: true,
+          includeMessageActions: true, // Include message actions in the response
+      });
 
-    // Loop through each message in the fetched history
-    for (const msg of history.channels[publicChannel]) {
-      msg.publisher = msg.uuid; // Ensure publisher ID is set
+      // Check if there are messages for the specified channel
+      if (history.channels && history.channels[publicChannel]) {
+          // Loop through each message in the fetched history
+          for (const msg of history.channels[publicChannel]) {
+              msg.publisher = msg.uuid; // Ensure publisher ID is set
 
-      // Display the message
-      await messageReceived(msg, true);
+              // Display the message
+              await messageReceived(msg, true);
 
-      // Check if the message has associated actions (reactions)
-      if (msg.actions && msg.actions.react) {
-        // Loop through each reaction type and count
-        for (const reaction in msg.actions.react) {
-          const count = msg.actions.react[reaction].length;
+              // Check if the message has associated actions (reactions)
+              if (msg.actions && msg.actions.react) {
+                  // Loop through each reaction type and count
+                  for (const reaction in msg.actions.react) {
+                      const count = msg.actions.react[reaction].length;
 
-          // Update the UI to show the reaction with the count
-          maEmojiReaction({
-            event: 'added',
-            data: {
-              messageTimetoken: msg.timetoken,
-              type: 'react',
-              value: reaction, // Use the emoji or reaction type
-            },
-            count: count, // Pass the count to display properly
-          });
-        }
+                      // Update the UI to show the reaction with the count
+                      maEmojiReaction({
+                          event: 'added',
+                          data: {
+                              messageTimetoken: msg.timetoken,
+                              type: 'react',
+                              value: reaction, // Use the emoji or reaction type
+                          },
+                          count: count // Pass the count to display properly
+                      });
+                  }
+              }
+          }
+      } else {
+          console.log("No messages in history for this channel.");
       }
-    }
   } catch (error) {
-    console.log("Error fetching message history or actions:", error);
+      console.log("Error fetching message history or actions:", error);
   }
 }
 
@@ -267,7 +272,30 @@ async function sendReadReceipt(timetoken) {
   });
 }
 
+// Function to display a toast message
+function showToast(message, type = "info") {
+  const toastElement = document.getElementById("generalToast");
+  const toastBody = document.getElementById("toast-body");
+
+  // Set message and icon
+  toastBody.innerText = message;
+
+  // Apply different styles based on type
+  if (type === "info") {
+      toastElement.classList.remove("toast-error");
+      toastElement.classList.add("toast-info");
+  } else if (type === "error") {
+      toastElement.classList.remove("toast-info");
+      toastElement.classList.add("toast-error");
+  }
+
+  // Show the toast
+  const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
+  toast.show();
+}
+
 // Load the chat when the page loads
 window.onload = function() {
   loadChat();
+  showToast("See which users are online ➡️", "info");
 };

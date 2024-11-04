@@ -244,6 +244,11 @@ body {
     margin-left: 8px;
 }
 
+.toast-info {
+    background-color: #007bff; /* Example: Blue background for info */
+    color: #fff;
+}
+
 
 .temp-message-container {
     display:flex;
