@@ -89,8 +89,8 @@ async function messageReceived(messageObj, isFromHistory) {
 
 // Create HTML for sent messages
 function createMessageSent(messageObj, messageIsRead) {
-  const readSrc = messageIsRead ? '../img/icons/read.png' : '../img/icons/sent.png';
-  const profileUrl = channelMembers[messageObj.publisher]?.profileUrl || '../img/avatar/placeholder.png';
+  const readSrc = messageIsRead ? 'web/img/icons/read.png' : 'web/img/icons/sent.png';
+  const profileUrl = channelMembers[messageObj.publisher]?.profileUrl || 'web/img/avatar/placeholder.png';
   const name = pubnub.getUUID();
 
   const newMsg = document.createElement('div');
@@ -111,7 +111,7 @@ function createMessageSent(messageObj, messageIsRead) {
           <img id="message-check-${messageObj.timetoken}" src="${readSrc}" height="10px">
         </div>
         <div id="emoji-reactions-${messageObj.timetoken}" class="temp-message-reaction-display" style="display: none;">
-          <img src="../img/icons/smile.png" height="18">
+          <img src="web/img/icons/smile.png" height="18">
           <span id="emoji-reactions-${messageObj.timetoken}-count" class="text-caption temp-message-reaction-number">0</span>
         </div>
       </div>
@@ -123,7 +123,7 @@ function createMessageSent(messageObj, messageIsRead) {
 
 // Create HTML for received messages
 function createMessageReceived(messageObj) {
-  const profileUrl = channelMembers[messageObj.publisher]?.profileUrl || '../img/avatar/placeholder.png';
+  const profileUrl = channelMembers[messageObj.publisher]?.profileUrl || 'web/img/avatar/placeholder.png';
   const name = channelMembers[messageObj.publisher]?.name || "Unknown";
 
   const newMsg = document.createElement('div');
@@ -141,10 +141,10 @@ function createMessageReceived(messageObj) {
       <div class="temp-message-bubble temp-message-bubble-you" id="msg-text-${messageObj.timetoken}">
         ${messageContents(messageObj)}
         <div class="temp-read-indicator">
-          <img id="message-check-${messageObj.timetoken}" src="../img/icons/read.png" height="10px">
+          <img id="message-check-${messageObj.timetoken}" src="web/img/icons/read.png" height="10px">
         </div>
         <div id="emoji-reactions-${messageObj.timetoken}" class="temp-message-reaction-display" style="display: none;">
-          <img src="../img/icons/smile.png" height="18">
+          <img src="web/img/icons/smile.png" height="18">
           <span id="emoji-reactions-${messageObj.timetoken}-count" class="text-caption temp-message-reaction-number">0</span>
         </div>
       </div>

@@ -33,10 +33,10 @@ function generateRandomUserId() {
   return `pubnub#${randomNumber}`;
 }
 
-// Function to randomly select an avatar from "../img/avatar/001.png" to "../img/avatar/020.png"
+// Function to randomly select an avatar from "web/img/avatar/001.png" to "web/img/avatar/020.png"
 function getRandomAvatar() {
   const avatarNumber = String(Math.floor(1 + Math.random() * 20)).padStart(3, '0'); // Generate a random number between 001 and 020
-  return `../img/avatar/${avatarNumber}.png`;
+  return `./web/img/avatar/${avatarNumber}.png`;
 }
 
 // Create PubNub object with keys
@@ -189,7 +189,7 @@ async function getUserMetadataForId(userId) {
     const result = await pubnub.objects.getUUIDMetadata({ uuid: userId });
     return result.data;
   } catch {
-    return { name: "Unknown", profileUrl: "../img/avatar/placeholder.png" };
+    return { name: "Unknown", profileUrl: "web/img/avatar/placeholder.png" };
   }
 }
 

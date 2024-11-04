@@ -14,7 +14,7 @@ function maReadReceipt(messageActionEvent) {
       messageActionEvent.event === 'added' &&
       messageActionEvent.data.type === 'read'
     ) {
-      messageCheckElement.src = '../img/icons/read.png';
+      messageCheckElement.src = 'web/img/icons/read.png';
     }
   } else {
     inflightReadReceipt[messageActionEvent.data.messageTimetoken] = true;

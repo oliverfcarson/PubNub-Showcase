@@ -1,6 +1,6 @@
 var activeTypers = {};
 const TYPING_INDICATOR_TIMEOUT_IN_MSECS = 5000;
-const PLACEHOLDER_AVATAR = "../img/avatar/placeholder.png"; // Path to the placeholder image
+const PLACEHOLDER_AVATAR = "web/img/avatar/placeholder.png"; // Path to the placeholder image
 
 // Send typing indicator signal
 function sendTypingIndicator() {

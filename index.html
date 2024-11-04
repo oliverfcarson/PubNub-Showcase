@@ -1,7 +1,7 @@
 <HTML>
 
 <HEAD>
-    <TITLE>PubNub Showcase Demo</TITLE>
+    <TITLE>PubNub Chat Solutions Demo</TITLE>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <!--  Fonts -->
@@ -12,16 +12,16 @@
         integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4"
         crossorigin="anonymous"></script>
 
-    <link rel="icon" href="../favicon.ico" />
-    <link rel="stylesheet" href="./chat.css" />
-    <link rel="stylesheet" href="../shared/style.css" />
+    <link rel="icon" href="web/favicon.ico" />
+    <link rel="stylesheet" href="web/chat/chat.css" />
+    <link rel="stylesheet" href="web/shared/style.css" />
     <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.8.2.10.js"></script>
-    <script src="../shared/shared.js"></script>
-    <script src="./message.js"></script>
-    <script src="./typing-indicator.js"></script>
-    <script src="./presence.js"></script>
-    <script src="./message-actions.js"></script>
-    <script src="./chat.js"></script>
+    <script src="web/shared/shared.js"></script>
+    <script src="web/chat/message.js"></script>
+    <script src="web/chat/typing-indicator.js"></script>
+    <script src="web/chat/presence.js"></script>
+    <script src="web/chat/message-actions.js"></script>
+    <script src="web/chat/chat.js"></script>
 
     <!--  Emoji  -->
     <script src="https://cdn.jsdelivr.net/npm/emoji-mart@latest/dist/browser.js"></script>
@@ -34,7 +34,7 @@
         <div id="chat-rhs">
             <!-- Floating Info Button -->
             <div class="chat-info-icon" data-bs-toggle="offcanvas" data-bs-target="#chatRightSide" aria-controls="chatRightSide">
-                <img src="../img/icons/hamburger.png" height="22">
+                <img src="web/img/icons/hamburger.png" height="22">
             </div>          
             <div id='messageList' class="message-list">
                 <div id='messageListContents' class="message-list-contents"></div>
@@ -45,7 +45,7 @@
                 <div id="generalToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
                     <div class="d-flex">
                         <div class="toast-body">
-                            <img src="../img/icons/info.png" height="20"><span id="toast-body"></span>
+                            <img src="web/img/icons/info.png" height="20"><span id="toast-body"></span>
                         </div>
                         <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
                     </div>
@@ -79,12 +79,12 @@
 
             <div class="d-flex flex-row message-input-bar">
 
-                <div class="message-emoji" onclick="messageInputEmoji()"><img src="../img/icons/emoji.png" height="22">
+                <div class="message-emoji" onclick="messageInputEmoji()"><img src="web/img/icons/emoji.png" height="22">
                 </div>
                 <input id="input-message" class="text-body-2 pn-text-field message-input" placeholder="Message" />
-                <div class="message-emoji" onclick="messageInputAttachment()"><img src="../img/icons/attachment.png"
+                <div class="message-emoji" onclick="messageInputAttachment()"><img src="web/img/icons/attachment.png"
                         height="22"></div>
-                <div class="message-emoji" onclick="messageInputSend()"><img src="../img/icons/send.png" height="22">
+                <div class="message-emoji" onclick="messageInputSend()"><img src="web/img/icons/send.png" height="22">
                 </div>
                 <div class="spinner-border align-self-center" id="spinner" style="display:none" role="status">
                     <span class="visually-hidden">Loading...</span>
