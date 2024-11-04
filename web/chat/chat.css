@@ -10,16 +10,7 @@ body {
     flex-direction: row;
     width: 100%;
     flex-grow: 1;
-    overflow: scroll;
-}
-
-#chat-lhs {
-    background: var(--color-background-default);
-    display: flex;
-    flex-direction: column;
-    overflow:scroll;
-    min-width: 25%;
-    border-right: 1px solid var(--color-background-text-secondary);
+    overflow: hidden;
 }
 
 #chat-rhs {
@@ -27,25 +18,25 @@ body {
     display: flex;
     flex-grow: 1;
     flex-direction: column;
-    overflow: scroll;
+    overflow: hidden;
     padding-bottom: 8px;
 }
 
 .message-list {
     display: flex;
-    flex: 1;
-    flex-wrap: wrap;
-    overflow: scroll;
-    flex-direction: column-reverse
+    flex-direction: column-reverse;
+    overflow-y: auto;
+    height: 100%; /* Ensure it takes up available height */
 }
 
 .message-list-contents {
-    width: 100%;
-    flex-direction: column;
     display: flex;
+    flex-direction: column;
+    width: 100%;
     padding-left: 24px;
     padding-right: 24px;
 }
+
 
 .user-list {
     background: var(--color-background);

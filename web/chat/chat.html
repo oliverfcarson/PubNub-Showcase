@@ -17,8 +17,6 @@
     <link rel="stylesheet" href="../shared/style.css" />
     <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.8.2.10.js"></script>
     <script src="../shared/shared.js"></script>
-    <script src="../shared/keys.js"></script>
-    <script src="../shared/pubnub_setup.js"></script>
     <script src="./chat-constants.js"></script>
     <script src="./message.js"></script>
     <script src="./typing-indicator.js"></script>
@@ -34,48 +32,17 @@
 </HEAD>
 
 <body>
-
-
-    <div id="chat-container">
-        <div id="chat-lhs">
-            <div class="chat-list-current-user">
-                <div class="user-with-presence">
-                    <img id="avatar" src="../img/avatar/placeholder.png" class="chat-list-avatar">
-                    <span class="presence-dot-online"></span>
-                    <span id="currentUser" class="chat-list-current-user-name emphasised-body"></span>
-                </div>
-            </div>
-
-            <div class="text-body-2 chat-list-instructions">Select a group or person to chat:</div>
-
-            <div class="user-list text-body-1">
-                <div class="emphasised-body">Public Groups</div>
-                <div id="groupList" class="">
-                </div>
-            </div>
-
-            <div class="user-list">
-                <div class="emphasised-body">Private Groups</div>
-                <div id="groupListPrivate" class="">
-                </div>
-
-            </div>
-
-            <div class="user-list">
-                <div class="emphasised-body">Direct 1:1 Chats</div>
-                <div id="oneOneUserList" class="">
-                </div>
-            </div>
-
-        </div>
-
+    <div id="chat-container">        
         <div id="chat-rhs">
-            <div id="header" class="chat-header">
-                <div class="chat-hamburger-icon" data-bs-toggle="offcanvas" data-bs-target="#chatLeftSide"
-                    aria-controls="chatLeftSide">
-                    <img src="../img/icons/hamburger.png" width="25px">
-                </div>
+            <div id="header" class="chat-header">               
                 <div class="blue-ellipse-bkd"></div>
+                <div class="chat-list-current-user">
+                    <div class="user-with-presence">
+                        <img id="avatar" src="../img/avatar/placeholder.png" class="chat-list-avatar">
+                        <span class="presence-dot-online"></span>
+                        <span id="currentUser" class="chat-list-current-user-name emphasised-body"></span>
+                    </div>
+                </div>    
                 <div id='heading' class="demo-header heading-2 chat-header-active-group">Chat</div>
                 <div class="red-ellipse-bkd"></div>
 
@@ -86,19 +53,10 @@
                 </div>
             </div>
 
-
             <div id='messageList' class="message-list">
-
-                <div id='messageListContents' class="message-list-contents">
-
-                </div>
-
+                <div id='messageListContents' class="message-list-contents"></div>
             </div>
-
-            <div id="emojiPicker" class="mx-2 emoji-picker">
-
-            </div>
-
+            <div id="emojiPicker" class="mx-2 emoji-picker"></div>
 
             <div class="toast-container position-fixed bottom-0 end-0 p-3">
                 <div id="liveToast" class="toast toast-error" role="alert" aria-live="assertive" aria-atomic="true">
@@ -137,9 +95,7 @@
                         </div>
                     </div>
                 </div>
-
             </div>
-
 
             <div class="d-flex flex-row message-input-bar">
 
@@ -153,97 +109,7 @@
                 <div class="spinner-border align-self-center" id="spinner" style="display:none" role="status">
                     <span class="visually-hidden">Loading...</span>
                 </div>
-
-
             </div>
-        </div>
-    </div>
-
-    <nav id="bottomNav" class="navbar">
-        <div id="carousel" class="carousel-parent" style="display:none">
-            <div class="carousel">
-                <a href="../chat/chat.html" class="carousel-tile">
-                    <img src="../img/icons/icon-chat.png" class="carousel-image">
-                    <div class="emphasised-body carousel-name">Chat</div>
-                </a>
-                <a href="../live-events/live-events.html" class="carousel-tile">
-                    <img src="../img/icons/icon-live-events.png" class="carousel-image">
-                    <div class="emphasised-body carousel-name">Live Events</div>
-                </a>
-                <a href="../data-streaming/data-streaming.html" class="carousel-tile">
-                    <img src="../img/icons/icon-realtime-streaming.png" class="carousel-image">
-                    <div class="emphasised-body carousel-name">Data Streaming</div>
-                </a>
-                <a href="../geolocation/geolocation.html" class="carousel-tile">
-                    <img src="../img/icons/icon-geolocation.png" class="carousel-image">
-                    <div class="emphasised-body carousel-name">Geolocation</div>
-                </a>
-                <a href="../collaboration/collaboration.html" class="carousel-tile">
-                    <img src="../img/icons/icon-collaboration.png" class="carousel-image">
-                    <div class="emphasised-body carousel-name">Multi-User Collaboration</div>
-                </a>
-                <a href="../iot/iot.html" class="carousel-tile">
-                    <img src="../img/icons/icon-iot.png" class="carousel-image">
-                    <div class="emphasised-body carousel-name">IoT Device Control</div>
-                </a>
-            </div>
-
-        </div>
-
-        <div class="navbar-container">
-            <a class="nav-link bottom-nav-item" href="../index.html">
-                <img class="navbar-icon" src="../img/navbar/home.png">
-                <span class="text-caption navbar-text">Home</span></a>
-            <a id="nav-discover" class="nav-link bottom-nav-item" style="cursor:pointer"
-                onclick="javascript:toggleShowcase()">
-                <img class="navbar-icon" src="../img/navbar/discover.png">
-                <span class="text-caption navbar-text">Discover</span></a>
-            <a class="nav-link bottom-nav-item" href="../admin/admin.html">
-                <img class="navbar-icon" src="../img/navbar/profile.png">
-                <span class="text-caption navbar-text">Profile</span></a>
-        </div>
-    </nav>
-
-
-
-
-
-
-    <div class="offcanvas offcanvas-start" data-bs-scroll="true" tabindex="-1" id="chatLeftSide"
-        aria-labelledby="chatLeftSide">
-        <div class="offcanvas-body sidebar">
-            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-
-            <div class="chat-list-current-user">
-                <div class="user-with-presence">
-                    <img id="avatar-side" src="../img/avatar/placeholder.png" class="chat-list-avatar">
-                    <span class="presence-dot-online"></span>
-                    <span id="currentUser-side" class="chat-list-current-user-name emphasised-body"></span>
-                </div>
-            </div>
-
-            <div class="text-body-2 chat-list-instructions">Select a group or person to chat:</div>
-
-            <div class="user-list text-body-1">
-                <div class="emphasised-body">Public Groups</div>
-                <div id="groupList-side" class="">
-                </div>
-            </div>
-
-            <div class="user-list">
-                <div class="emphasised-body">Private Groups</div>
-                <div id="groupListPrivate-side" class="">
-                </div>
-
-            </div>
-
-            <div class="user-list">
-                <div class="emphasised-body">Direct 1:1 Chats</div>
-                <div id="oneOneUserList-side" class="">
-                </div>
-            </div>
-
-
         </div>
     </div>
 
@@ -255,26 +121,15 @@
         <div class="offcanvas-body">
             <div id="chat-info-description" class="text-body-2"></div>
             <div class="emphasised-body">Chat Members</div>
-            <div id="memberList" class="chat-info-member-list">
-
-            </div>
+            <div id="memberList" class="chat-info-member-list"></div>
         </div>
-
-
-
-
-
     </div>
 
     <script>
         const pickerOptions = {onEmojiSelect: selectEmoji}
         const picker = new EmojiMart.Picker(pickerOptions)
-
         document.getElementById('emojiPicker').appendChild(picker)
-
     </script>
-
-
 </BODY>
 
 </HTML>

@@ -16,6 +16,12 @@ async function loadChat() {
   userId = generateRandomUserId();
   pubnub = await createPubNubObject();
   me = await setupUser(pubnub.getUserId());
+
+  // Set the user ID in the header after PubNub initialization
+  document.getElementById("currentUser").innerText = pubnub.getUserId() + "(You)";
+
+  // Set avatar
+  document.getElementById("avatar").src = me.profileUrl;
   
   // Subscribe to the public channel and set up event listeners
   pubnub.subscribe({
