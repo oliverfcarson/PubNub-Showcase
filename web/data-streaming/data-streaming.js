@@ -17,12 +17,6 @@ var messageListContainer
 
 //  Called on page load
 async function loadRealTime () {
-  if (!(await testForLoggedInUser()))
-  {
-    //  User is not logged in, return them to the index
-    window.location.href = '../index.html';
-  }
-  
   messageListDiv = document.getElementById('messageListContents')
   messageListContainer = document.getElementById('messageList')
   //  Unlike the other demos in this showcase application, the data streaming demo uses existing PubNub
