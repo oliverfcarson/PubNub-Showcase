@@ -17,6 +17,7 @@ var valueSettings = null;
 var tempDeviceCounter = 0;
 var alarmDeviceCounter = 0;
 
+/*
 // Called when navigating away from iot
 window.onbeforeunload = function() {
   // Terminate Web Workers
@@ -29,7 +30,7 @@ window.onbeforeunload = function() {
     }
   }
 };
-
+*/
 // Called on page load
 async function initialize () {
 
@@ -39,7 +40,11 @@ async function initialize () {
   valueSettings = {}
 
   //  PubNub object - connection with the PubNub infrastructure
-  pubnub = await createPubNubObject();
+  pubnub = new PubNub({
+    subscribeKey: subscribe_key,
+    publishKey: publish_key,
+    userId: "oc-test"
+  });
 
   activatePubNubListener(); // Listen to channels device.* for any updates
 

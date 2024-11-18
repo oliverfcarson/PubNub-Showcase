@@ -89,7 +89,7 @@ function worker_node(){
         }
 
         // Set MetaData and Channel Members for each sim
-        await setMetaData(url);
+        //await setMetaData(url);
 
         // Listen for status (provisioning) and message (setting) updates from PubNub
         await localPubNub.addListener({
